@@ -48,6 +48,27 @@ except Exception as e:
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 
+
+def build_fallback_answer(query: str) -> str:
+    text = query.lower()
+
+    if any(word in text for word in ["water", "hydrate", "hydration"]):
+        return "💧 Aim for about 8-10 cups of water a day, and increase that if you sweat a lot, exercise, or it’s hot outside."
+
+    if any(word in text for word in ["breakfast", "morning meal"]):
+        return "🍳 A good breakfast should include protein, fiber, and healthy carbs, like eggs with whole grain toast or yogurt with fruit."
+
+    if any(word in text for word in ["energy", "tired", "fatigue"]):
+        return "⚡ For better energy, drink water, eat a balanced meal with protein and fiber, and try a short walk or stretch break."
+
+    if any(word in text for word in ["snack", "snacks"]):
+        return "🥜 Good snack options include fruit, yogurt, nuts, hummus with veggies, or oatmeal with berries."
+
+    if "how much" in text and "drink" in text:
+        return "💧 A helpful target is 8-10 cups of water a day, but your needs can change with activity level and weather."
+
+    return f"🤖 I can help with that health question: {query}. For the best results, mention the food, symptom, or goal you want advice on."
+
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "ok", "message": "Gemini AI Flask Server is running"})
@@ -166,7 +187,7 @@ GENERAL: Get adequate sleep and manage stress levels"""
                 return jsonify({"response": "NO_ALERTS_NEEDED", "fallback": True}), 200, headers
                 
             else:
-                fallback_response = "🍎 Focus on eating whole foods, staying hydrated, and getting regular exercise for optimal health."
+                fallback_response = build_fallback_answer(query)
                 return jsonify({"response": fallback_response, "fallback": True}), 200, headers
 
     except Exception as e:

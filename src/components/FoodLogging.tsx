@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Clock, Utensils, Camera, Upload, X, Loader2 } from 'lucide-react';
 import { useFoodLogs } from '@/hooks/useFoodLogs';
 import { cn } from '@/lib/utils';
@@ -17,10 +18,13 @@ export function FoodLogging() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isListening, setIsListening] = useState(false);
+  const [pendingFood, setPendingFood] = useState<{ name: string; mealType: 'morning' | 'afternoon' | 'evening' | null } | null>(null);
+  const [quantityInput, setQuantityInput] = useState('1 serving');
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { logFood, getCurrentMealType, hasPeriodLogs } = useFoodLogs();
 
   // Gemini API key
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyBTP_Y6J5rqxc18iOcHb7Q8iKUFCGnDG_k";
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyDxylVUxsqAxeX002jSDvLZ5XFIbQ7ZB_w";
 
   // Cleanup camera stream on component unmount
   useEffect(() => {
@@ -32,11 +36,11 @@ export function FoodLogging() {
   }, [stream]);
 
   const getCurrentHour = () => new Date().getHours();
-  
+
   const isMealTimeActive = (meal: 'morning' | 'afternoon' | 'evening') => {
     const hour = getCurrentHour();
     const hasLogged = hasPeriodLogs(meal);
-    
+
     switch (meal) {
       case 'morning':
         return hour >= 6 && hour < 12 && !hasLogged;
@@ -60,18 +64,16 @@ export function FoodLogging() {
   const getMealStatus = (meal: 'morning' | 'afternoon' | 'evening') => {
     const hasLogged = hasPeriodLogs(meal);
     const isActive = isMealTimeActive(meal);
-    
+
     if (hasLogged) return { text: 'Logged ✅', variant: 'default' as const };
     if (isActive) return { text: 'Log Now! ⚡', variant: 'default' as const };
     return { text: 'Not Time Yet ⏰', variant: 'secondary' as const };
   };
 
   const handleVoiceResult = (result: { transcript: string; mealType: 'morning' | 'afternoon' | 'evening' | null }) => {
-    setFoodInput(result.transcript);
-    if (result.mealType) {
-      setSelectedMeal(result.mealType);
-    }
     setIsListening(false);
+    setPendingFood({ name: result.transcript, mealType: result.mealType });
+    setQuantityInput('1 serving');
   };
 
   const handleLogFood = async () => {
@@ -81,7 +83,7 @@ export function FoodLogging() {
 
     const mealType = selectedMeal || getCurrentMealType();
     const result = await logFood(foodInput.trim(), mealType);
-    
+
     if (result?.success) {
       setFoodInput('');
       setSelectedMeal(null);
@@ -110,7 +112,7 @@ export function FoodLogging() {
 
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
       });
       setStream(mediaStream);
@@ -122,24 +124,26 @@ export function FoodLogging() {
   };
 
   const captureImage = () => {
-    const video = document.getElementById('food-camera-video') as HTMLVideoElement;
+    const video = videoRef.current;
+    if (!video) return;
+
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    
-    if (video && context) {
+
+    if (context) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       context.drawImage(video, 0, 0);
-      
+
       const imageData = canvas.toDataURL('image/jpeg', 0.8);
       setSelectedImage(imageData);
       setShowImageCapture(false);
-      
+
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
         setStream(null);
       }
-      
+
       analyzeFoodImage(imageData);
     }
   };
@@ -154,11 +158,11 @@ export function FoodLogging() {
 
   const analyzeFoodImage = async (imageData: string) => {
     setIsAnalyzing(true);
-    
+
     const base64Image = imageData.split(',')[1];
     const mimeType = imageData.split(';')[0].split(':')[1];
-    
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const prompt = `Identify the food items in this image and list only the food names separated by commas. 
     Be specific about the food items you can see. For example: "rice, chicken curry, naan bread" or "apple, banana, yogurt".
@@ -175,7 +179,7 @@ export function FoodLogging() {
 
     try {
       toast.loading("🤖 Identifying food items...", { id: "food-analysis" });
-      
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -183,7 +187,7 @@ export function FoodLogging() {
       });
 
       const responseData = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(responseData?.error?.message || `HTTP error: ${response.status}`);
       }
@@ -191,8 +195,9 @@ export function FoodLogging() {
       const candidate = responseData.candidates?.[0];
       if (candidate?.content?.parts?.[0]?.text) {
         const foodNames = candidate.content.parts[0].text.trim();
-        setFoodInput(foodNames);
-        toast.success("🎉 Food identified! You can edit the names before logging", { id: "food-analysis" });
+        setPendingFood({ name: foodNames, mealType: selectedMeal });
+        setQuantityInput('1 serving');
+        toast.success("🎉 Food identified! How much did you have?", { id: "food-analysis" });
       } else {
         throw new Error("Could not identify food items");
       }
@@ -201,6 +206,23 @@ export function FoodLogging() {
       toast.error("❌ Could not identify food. Please type manually.", { id: "food-analysis" });
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const confirmPendingFood = async () => {
+    if (!pendingFood || !quantityInput.trim()) return;
+
+    const finalFoodName = `${quantityInput.trim()} of ${pendingFood.name}`;
+    const mealType = pendingFood.mealType || selectedMeal || getCurrentMealType();
+
+    const result = await logFood(finalFoodName, mealType);
+
+    if (result?.success) {
+      setPendingFood(null);
+      setQuantityInput('1 serving');
+      setFoodInput('');
+      setSelectedImage(null);
+      setSelectedMeal(null);
     }
   };
 
@@ -234,7 +256,7 @@ export function FoodLogging() {
           {meals.map((meal) => {
             const isActive = isMealTimeActive(meal);
             const status = getMealStatus(meal);
-            
+
             return (
               <Button
                 key={meal}
@@ -266,15 +288,15 @@ export function FoodLogging() {
             <div className="border rounded-lg p-3 bg-muted/30">
               <div className="relative">
                 <video
-                  id="food-camera-video"
-                  autoPlay
-                  playsInline
-                  muted
                   ref={(video) => {
+                    videoRef.current = video;
                     if (video && stream) {
                       video.srcObject = stream;
                     }
                   }}
+                  autoPlay
+                  playsInline
+                  muted
                   className="w-full h-32 object-cover rounded-lg bg-black"
                 />
               </div>
@@ -294,9 +316,9 @@ export function FoodLogging() {
           {selectedImage && !showImageCapture && (
             <div className="border rounded-lg p-2 bg-muted/30">
               <div className="flex items-center gap-2">
-                <img 
-                  src={selectedImage} 
-                  alt="Food" 
+                <img
+                  src={selectedImage}
+                  alt="Food"
                   className="w-16 h-16 object-cover rounded border"
                 />
                 <div className="flex-1">
@@ -304,9 +326,9 @@ export function FoodLogging() {
                     {isAnalyzing ? "🤖 Analyzing food..." : "📸 Food image captured"}
                   </p>
                 </div>
-                <Button 
-                  onClick={resetImageCapture} 
-                  variant="ghost" 
+                <Button
+                  onClick={resetImageCapture}
+                  variant="ghost"
                   size="sm"
                   disabled={isAnalyzing}
                 >
@@ -327,7 +349,7 @@ export function FoodLogging() {
                 className="pr-28"
                 disabled={isAnalyzing || isListening}
               />
-              
+
               {/* Voice Recognition and Image Capture Buttons */}
               <div className="absolute right-1 top-1 flex items-center gap-1">
                 <VoiceRecognition
@@ -336,7 +358,7 @@ export function FoodLogging() {
                   setIsListening={setIsListening}
                   disabled={isAnalyzing}
                 />
-                
+
                 <input
                   type="file"
                   id="food-image-upload"
@@ -346,9 +368,9 @@ export function FoodLogging() {
                   disabled={isAnalyzing}
                 />
                 <label htmlFor="food-image-upload">
-                  <Button 
+                  <Button
                     type="button"
-                    variant="ghost" 
+                    variant="ghost"
                     size="sm"
                     className="h-8 w-8 p-0"
                     disabled={isAnalyzing || isListening}
@@ -363,10 +385,10 @@ export function FoodLogging() {
                     </span>
                   </Button>
                 </label>
-                
-                <Button 
+
+                <Button
                   onClick={startCamera}
-                  variant="ghost" 
+                  variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0"
                   disabled={isAnalyzing || showImageCapture || isListening}
@@ -375,8 +397,8 @@ export function FoodLogging() {
                 </Button>
               </div>
             </div>
-            
-            <Button 
+
+            <Button
               onClick={handleLogFood}
               disabled={!foodInput.trim() || isAnalyzing || isListening}
               size="sm"
@@ -390,17 +412,45 @@ export function FoodLogging() {
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Clock className="w-4 h-4" />
           <span>
-            Current time: {new Date().toLocaleTimeString()} • 
+            Current time: {new Date().toLocaleTimeString()} •
             Active meal: {getMealEmoji(getCurrentMealType())} {getCurrentMealType()}
           </span>
         </div>
 
         {/* Tips */}
         <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-          💡 <strong>Pro tip:</strong> Use voice (🎤), camera (📷), or type manually! Morning button works 6AM-12PM, Afternoon 12PM-5PM, Evening after 5PM. 
+          💡 <strong>Pro tip:</strong> Use voice (🎤), camera (📷), or type manually! Morning button works 6AM-12PM, Afternoon 12PM-5PM, Evening after 5PM.
           Buttons turn off after logging! You can always override by selecting a different meal time.
         </div>
       </CardContent>
+
+      <Dialog open={!!pendingFood} onOpenChange={(open) => !open && setPendingFood(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Almost there!</DialogTitle>
+            <DialogDescription>
+              We recognized: <strong className="text-foreground">{pendingFood?.name}</strong>.
+              How much did you have? Let's add the quantity to make your log perfect!
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              value={quantityInput}
+              onChange={(e) => setQuantityInput(e.target.value)}
+              placeholder="e.g. 1 bowl, 2 pieces, 200g..."
+              onKeyPress={(e) => e.key === 'Enter' && confirmPendingFood()}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              Preview: {quantityInput.trim() ? `${quantityInput.trim()} of ${pendingFood?.name}` : pendingFood?.name}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingFood(null)}>Cancel</Button>
+            <Button onClick={confirmPendingFood} disabled={!quantityInput.trim()}>Log Food</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

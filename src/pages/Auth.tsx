@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,8 +13,12 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [searchParams] = useSearchParams();
   const { signUp, signIn, user } = useAuth();
   const navigate = useNavigate();
+  const inviteRef = searchParams.get('ref') || '';
+  const inviteCode = searchParams.get('invite') || '';
+  const inviteRefId = searchParams.get('refId') || '';
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -23,13 +27,24 @@ export default function Auth() {
     }
   }, [user, navigate]);
 
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    if (mode === 'signup' || inviteRef || inviteCode) {
+      setIsSignUp(true);
+    }
+  }, [searchParams, inviteRef, inviteCode]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
       if (isSignUp) {
-        const result = await signUp(email, password, firstName);
+        const result = await signUp(email, password, firstName, undefined, {
+          inviteCode: inviteCode || undefined,
+          referrerName: inviteRef || undefined,
+          referrerId: inviteRefId || undefined,
+        });
         if (!result.error) {
           navigate('/onboarding');
         }
@@ -66,6 +81,11 @@ export default function Auth() {
               : "Welcome back! Ready to charge your health battery? ⚡"
             }
           </p>
+          {inviteRef && isSignUp && (
+            <div className="mt-4 inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-4 py-2 text-sm text-primary">
+              Invited by {inviteRef}
+            </div>
+          )}
         </div>
 
         <Card className="w-full border-primary/20 shadow-elevated">

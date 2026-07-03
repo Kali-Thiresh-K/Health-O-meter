@@ -1,0 +1,42 @@
+[
+  {
+    "id": "8a27561c-618d-4845-9e0e-3f595100f95a",
+    "email": "kalithiresh811@gmail.com",
+    "password": "$2a$10$q0ON/fHmdIBqRiHe2UT.S.HHewNebxCgJ0MuMKN3bb9JhyhAAANie",
+    "firstName": "Kalithiresh",
+    "lastName": "",
+    "age": 20,
+    "weightKg": 67,
+    "heightCm": 185,
+    "activityLevel": "moderate",
+    "goals": [
+      "healthy_lifestyle"
+    ],
+    "hydrationTargetGlasses": 8
+  },
+  {
+    "id": "0b83fefb-f0a2-4e85-b276-aa364fda4cf8",
+    "email": "kkaja484877@gmail.com",
+    "password": "$2a$10$d85LgSJ3wlXSgxC9Q10yBOir7YNWU9emRhJNwcfqHyofGKwcNfTcy",
+    "firstName": "Gowtham",
+    "lastName": "",
+    "age": 20,
+    "weightKg": 67,
+    "heightCm": 185,
+    "activityLevel": "moderate",
+    "goals": [
+      "healthy_lifestyle"
+    ],
+    "hydrationTargetGlasses": 8
+  },
+  {
+    "id": "339898cc-01eb-47b1-8c7f-d1d47daad261",
+    "email": "friend1@example.com",
+    "password": "$2a$10$L9NThjKP0dlDcAuWfIlScOMBsfLtrUUhzoLuiVHoNrI/P3TIklUu.",
+    "firstName": "Friend",
+    "lastName": "",
+    "referredBy": "Kali",
+    "referredById": "user_1",
+    "inviteCode": "testcode123"
+  }
+]

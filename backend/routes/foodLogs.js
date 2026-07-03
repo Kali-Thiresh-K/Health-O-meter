@@ -1,9 +1,77 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
+import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
+import mongoose from 'mongoose';
+import { fileURLToPath } from 'url';
 import FoodLog from '../models/FoodLog.js';
 import { authenticateToken } from './auth.js';
 
 const router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DEV_FOOD_LOGS_FILE = path.join(__dirname, '..', 'dev-foodlogs.json');
+
+const isMongoReady = () => mongoose.connection.readyState === 1;
+
+const readDevFoodLogs = async () => {
+  try {
+    const raw = await fs.readFile(DEV_FOOD_LOGS_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return [];
+    }
+
+    throw error;
+  }
+};
+
+const writeDevFoodLogs = async (logs) => {
+  await fs.writeFile(DEV_FOOD_LOGS_FILE, JSON.stringify(logs, null, 2));
+};
+
+const mapFoodLog = (log) => ({
+  id: log._id?.toString?.() || log.id,
+  name: log.foodName,
+  meal_type: log.mealType,
+  health_score: log.healthScore,
+  logged_at: new Date(log.loggedAt).toISOString()
+});
+
+const getUserFoodLogs = async (userId) => {
+  if (isMongoReady()) {
+    return FoodLog.find({ userId }).sort({ loggedAt: -1 });
+  }
+
+  const logs = await readDevFoodLogs();
+  return logs
+    .filter((log) => log.userId === userId)
+    .sort((a, b) => new Date(b.loggedAt) - new Date(a.loggedAt));
+};
+
+const saveFoodLog = async (log) => {
+  if (isMongoReady()) {
+    await log.save();
+    return log;
+  }
+
+  const logs = await readDevFoodLogs();
+  const nextLogs = [...logs, log];
+  await writeDevFoodLogs(nextLogs);
+  return log;
+};
+
+const deleteDevFoodLog = async (userId, id) => {
+  const logs = await readDevFoodLogs();
+  const nextLogs = logs.filter((log) => !(log.id === id && log.userId === userId));
+  const removed = nextLogs.length !== logs.length;
+  if (removed) {
+    await writeDevFoodLogs(nextLogs);
+  }
+  return removed;
+};
 
 // All routes require authentication
 router.use(authenticateToken);
@@ -11,16 +79,8 @@ router.use(authenticateToken);
 // Get user's food logs
 router.get('/', async (req, res) => {
   try {
-    const foodLogs = await FoodLog.find({ userId: req.user.userId })
-      .sort({ loggedAt: -1 });
-
-    const formattedLogs = foodLogs.map(log => ({
-      id: log._id,
-      name: log.foodName,
-      meal_type: log.mealType,
-      health_score: log.healthScore,
-      logged_at: log.loggedAt.toISOString()
-    }));
+    const foodLogs = await getUserFoodLogs(req.user.userId);
+    const formattedLogs = foodLogs.map(mapFoodLog);
 
     res.json(formattedLogs);
   } catch (error) {
@@ -43,25 +103,28 @@ router.post('/', [
 
     const { foodName, mealType, healthScore } = req.body;
 
-    const foodLog = new FoodLog({
-      userId: req.user.userId,
-      foodName,
-      mealType,
-      healthScore,
-      loggedAt: new Date()
-    });
+    const foodLog = isMongoReady()
+      ? new FoodLog({
+          userId: req.user.userId,
+          foodName,
+          mealType,
+          healthScore,
+          loggedAt: new Date()
+        })
+      : {
+          id: crypto.randomUUID(),
+          userId: req.user.userId,
+          foodName,
+          mealType,
+          healthScore,
+          loggedAt: new Date().toISOString()
+        };
 
-    await foodLog.save();
+    await saveFoodLog(foodLog);
 
     res.status(201).json({
       message: 'Food logged successfully',
-      foodLog: {
-        id: foodLog._id,
-        name: foodLog.foodName,
-        meal_type: foodLog.mealType,
-        health_score: foodLog.healthScore,
-        logged_at: foodLog.loggedAt.toISOString()
-      }
+      foodLog: mapFoodLog(foodLog)
     });
   } catch (error) {
     console.error('Create food log error:', error);
@@ -77,18 +140,13 @@ router.get('/today', async (req, res) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const todayLogs = await FoodLog.find({
-      userId: req.user.userId,
-      loggedAt: { $gte: today, $lt: tomorrow }
-    }).sort({ loggedAt: -1 });
+    const allLogs = await getUserFoodLogs(req.user.userId);
+    const todayLogs = allLogs.filter((log) => {
+      const loggedAt = new Date(log.loggedAt);
+      return loggedAt >= today && loggedAt < tomorrow;
+    });
 
-    const formattedLogs = todayLogs.map(log => ({
-      id: log._id,
-      name: log.foodName,
-      meal_type: log.mealType,
-      health_score: log.healthScore,
-      logged_at: log.loggedAt.toISOString()
-    }));
+    const formattedLogs = todayLogs.map(mapFoodLog);
 
     res.json(formattedLogs);
   } catch (error) {
@@ -100,10 +158,17 @@ router.get('/today', async (req, res) => {
 // Delete food log
 router.delete('/:id', async (req, res) => {
   try {
-    const foodLog = await FoodLog.findOneAndDelete({
-      _id: req.params.id,
-      userId: req.user.userId
-    });
+    let foodLog = null;
+
+    if (isMongoReady()) {
+      foodLog = await FoodLog.findOneAndDelete({
+        _id: req.params.id,
+        userId: req.user.userId
+      });
+    } else {
+      const removed = await deleteDevFoodLog(req.user.userId, req.params.id);
+      foodLog = removed ? { id: req.params.id } : null;
+    }
 
     if (!foodLog) {
       return res.status(404).json({ error: 'Food log not found' });

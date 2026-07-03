@@ -63,7 +63,10 @@ const userSchema = new mongoose.Schema({
   fatigue: { type: Number, default: 10, min: 0, max: 50 },
   lastSleepHours: { type: Number, min: 0, max: 24 },
   lastWorkoutMinutes: { type: Number, min: 0, max: 300 },
-  lastWorkoutType: { type: String, enum: ['walk', 'run', 'strength', 'yoga', 'cycling', 'none'], default: 'none' }
+  lastWorkoutType: { type: String, enum: ['walk', 'run', 'strength', 'yoga', 'cycling', 'none'], default: 'none' },
+  referredBy: { type: String },
+  referredById: { type: String },
+  inviteCode: { type: String }
 }, {
   timestamps: true
 });

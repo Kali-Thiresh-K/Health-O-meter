@@ -1,0 +1,18 @@
+[
+  {
+    "id": "3a051db9-ec0b-41a0-a063-169b78f7935f",
+    "userId": "8a27561c-618d-4845-9e0e-3f595100f95a",
+    "foodName": "Apple",
+    "mealType": "morning",
+    "healthScore": 92,
+    "loggedAt": "2026-07-03T13:07:36.956Z"
+  },
+  {
+    "id": "02f1b843-2791-4057-85b3-c4c73734dded",
+    "userId": "0b83fefb-f0a2-4e85-b276-aa364fda4cf8",
+    "foodName": "1 serving of chicken biryani",
+    "mealType": "evening",
+    "healthScore": 89,
+    "loggedAt": "2026-07-03T13:23:15.063Z"
+  }
+]

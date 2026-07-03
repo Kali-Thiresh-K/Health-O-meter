@@ -136,10 +136,20 @@ export const leaderboardApi = {
   },
 
   // Generate invite link for sharing
-  generateInviteLink(userName: string): string {
+  generateInviteLink(userName: string, userId?: string): string {
     const baseUrl = window.location.origin;
-    const inviteCode = btoa(`${userName}_${Date.now()}`).substring(0, 10);
-    return `${baseUrl}/join?invite=${inviteCode}&ref=${encodeURIComponent(userName)}`;
+    const inviteSeed = `${userId || userName}_${Date.now()}`;
+    const inviteCode = btoa(unescape(encodeURIComponent(inviteSeed))).replace(/=+$/g, '').slice(0, 12);
+    const params = new URLSearchParams({
+      invite: inviteCode,
+      ref: userName,
+    });
+
+    if (userId) {
+      params.set('refId', userId);
+    }
+
+    return `${baseUrl}/join?${params.toString()}`;
   }
 };
 

@@ -142,8 +142,8 @@ const Leaderboard: React.FC = () => {
   const maxPoints = users.length > 0 ? Math.max(...users.map(u => u.points)) : 100;
 
   const handleInviteFriends = () => {
-    const userName = users.find(u => u.rank === 1)?.name || 'HealthHero';
-    const inviteLink = leaderboardApi.generateInviteLink(userName);
+    const userName = currentUser?.firstName || currentUser?.email?.split('@')[0] || 'HealthHero';
+    const inviteLink = leaderboardApi.generateInviteLink(userName, currentUser?.id);
     
     navigator.clipboard.writeText(inviteLink).then(() => {
       toast.success('📋 Invite link copied to clipboard!');

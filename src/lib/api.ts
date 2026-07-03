@@ -78,8 +78,20 @@ export interface Profile {
 }
 
 export const authAPI = {
-  register: (email: string, password: string, firstName: string, lastName?: string) =>
-    api.post<AuthResponse>('/auth/register', { email, password, firstName, lastName }),
+  register: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName?: string,
+    referral?: { inviteCode?: string; referrerName?: string; referrerId?: string }
+  ) =>
+    api.post<AuthResponse>('/auth/register', {
+      email,
+      password,
+      firstName,
+      lastName,
+      ...referral,
+    }),
 
   login: (email: string, password: string) =>
     api.post<AuthResponse>('/auth/login', { email, password }),

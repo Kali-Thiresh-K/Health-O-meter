@@ -4,7 +4,13 @@ import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: APIUser | null;
-  signUp: (email: string, password: string, firstName?: string, lastName?: string) => Promise<{ error: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    firstName?: string,
+    lastName?: string,
+    referral?: { inviteCode?: string; referrerName?: string; referrerId?: string }
+  ) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
@@ -44,9 +50,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [toast]);
 
-  const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    firstName?: string,
+    lastName?: string,
+    referral?: { inviteCode?: string; referrerName?: string; referrerId?: string }
+  ) => {
     try {
-      const response = await authAPI.register(email, password, firstName || '', lastName);
+      const response = await authAPI.register(email, password, firstName || '', lastName, referral);
 
       // Store token
       localStorage.setItem('authToken', response.data.token);

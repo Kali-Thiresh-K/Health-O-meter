@@ -12,6 +12,16 @@ interface AnalysisResult {
   suggestions: string[];
 }
 
+const FALLBACK_MEAL_ANALYSIS: AnalysisResult = {
+  analysis: 'This meal looks like it includes a mix of carbs, protein, and some vegetables or sauces. A better photo or a fresh API response can provide a more exact breakdown.',
+  verdict: 'Moderate balance',
+  suggestions: [
+    'Add more vegetables',
+    'Choose a leaner protein',
+    'Watch portion size',
+  ],
+};
+
 export const MealAnalyzer = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -68,7 +78,7 @@ export const MealAnalyzer = () => {
     const base64Image = selectedImage.split(',')[1];
     const mimeType = selectedImage.split(';')[0].split(':')[1];
     
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const prompt = `Analyze the food in this image briefly. Give a very short analysis (max 2 sentences). 
     Provide a one-line verdict (e.g., 'Balanced', 'Too high in carbs', 'Lacks protein'). 
@@ -126,7 +136,12 @@ export const MealAnalyzer = () => {
         toast.loading(`🔄 Retrying analysis... (${retryCount + 1}/${maxRetries})`, { id: "analysis" });
         setTimeout(() => analyzeMeal(retryCount + 1), delay);
       } else {
-        setError(error.message || "Failed to analyze the meal. Please try again.");
+        if ((error?.message || '').toLowerCase().includes('model is not found')) {
+          setResult(FALLBACK_MEAL_ANALYSIS);
+          toast.info('⚠️ Using fallback meal guidance while the AI model is unavailable.', { id: 'analysis' });
+        } else {
+          setError(error.message || "Failed to analyze the meal. Please try again.");
+        }
         toast.error("❌ Analysis failed. Please try again!", { id: "analysis" });
       }
     } finally {
