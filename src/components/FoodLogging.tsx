@@ -24,7 +24,7 @@ export function FoodLogging() {
   const { logFood, getCurrentMealType, hasPeriodLogs } = useFoodLogs();
 
   // Gemini API key
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyDxylVUxsqAxeX002jSDvLZ5XFIbQ7ZB_w";
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
 
   // Cleanup camera stream on component unmount
   useEffect(() => {
@@ -162,7 +162,7 @@ export function FoodLogging() {
     const base64Image = imageData.split(',')[1];
     const mimeType = imageData.split(';')[0].split(':')[1];
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
     const prompt = `Identify the food items in this image and list only the food names separated by commas. 
     Be specific about the food items you can see. For example: "rice, chicken curry, naan bread" or "apple, banana, yogurt".

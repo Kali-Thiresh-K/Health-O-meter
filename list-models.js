@@ -1,7 +1,22 @@
 import axios from 'axios';
 import fs from 'fs';
 
-const apiKey = "AIzaSyDxylVUxsqAxeX002jSDvLZ5XFIbQ7ZB_w";
+function getApiKey() {
+    if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
+    try {
+        const env = fs.readFileSync('.env', 'utf8');
+        const match = env.match(/VITE_GEMINI_API_KEY=["']?([^"'\s]+)["']?/);
+        if (match) return match[1];
+    } catch (e) {}
+    try {
+        const env = fs.readFileSync('backend/.env', 'utf8');
+        const match = env.match(/GEMINI_API_KEY=["']?([^"'\s]+)["']?/);
+        if (match) return match[1];
+    } catch (e) {}
+    return '';
+}
+
+const apiKey = getApiKey();
 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
 
 async function testGemini() {

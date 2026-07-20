@@ -18,8 +18,27 @@ if not api_key:
 # Configure the Gemini model (simple configuration)
 try:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    print("Gemini API configured successfully")
+    model_names = [
+        'gemini-3.5-flash',
+        'gemini-3.1-flash-lite',
+        'gemini-3-pro-preview',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-pro'
+    ]
+    model = None
+    for model_name in model_names:
+        try:
+            model = genai.GenerativeModel(model_name)
+            # Test content generation to make sure model works
+            model.generate_content("Hello")
+            print(f"Successfully configured Gemini model: {model_name}")
+            break
+        except Exception as model_error:
+            model = None
+            continue
+    if model is None:
+        raise Exception("No working Gemini model found")
 except Exception as e:
     print(f"ERROR configuring Gemini API: {e}")
     exit(1)

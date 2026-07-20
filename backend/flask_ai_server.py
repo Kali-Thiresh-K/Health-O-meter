@@ -19,22 +19,25 @@ try:
     genai.configure(api_key=api_key)
     # Try different model names in order of preference
     model_names = [
-        "gemini-pro",
-        "gemini-1.0-pro", 
-        "models/gemini-pro",
-        "gemini-1.5-flash"
+        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-3-pro-preview",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-pro"
     ]
     
     model = None
     for model_name in model_names:
         try:
-            model = genai.GenerativeModel('gemini-2.5-pro')
+            model = genai.GenerativeModel(model_name)
             # Test the model with a simple query
             test_response = model.generate_content("Hello")
             print(f"Successfully configured Gemini model: {model_name}")
             break
         except Exception as model_error:
             print(f"Model {model_name} failed: {model_error}")
+            model = None
             continue
     
     if model is None:

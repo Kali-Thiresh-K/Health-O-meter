@@ -28,12 +28,14 @@ except Exception as e:
 
 # Test different model names
 model_names = [
+    'gemini-3.5-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-3-pro-preview',
+    'gemini-2.0-flash',
     'gemini-1.5-flash',
     'gemini-1.5-flash-latest',  
     'gemini-pro',
-    'gemini-1.0-pro',
-    'models/gemini-1.5-flash',
-    'models/gemini-pro'
+    'gemini-1.0-pro'
 ]
 
 for model_name in model_names:

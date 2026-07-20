@@ -22,8 +22,12 @@ if len(api_key) < 30:
 # Configure the Gemini model
 try:
     genai.configure(api_key=api_key)
-    # Try different model names - gemini-1.5-flash might be deprecated
+    # Try different model names
     model_names = [
+        'gemini-3.5-flash',
+        'gemini-3.1-flash-lite',
+        'gemini-3-pro-preview',
+        'gemini-2.0-flash',
         'gemini-1.5-flash-latest',
         'gemini-1.5-flash-002', 
         'gemini-1.5-flash',
@@ -35,10 +39,13 @@ try:
     for model_name in model_names:
         try:
             model = genai.GenerativeModel(model_name)
+            # Test model with simple query
+            model.generate_content("Hello")
             print(f"Successfully configured Gemini model: {model_name}")
             break
         except Exception as model_error:
             print(f"Failed to load model {model_name}: {model_error}")
+            model = None
             continue
     
     if model is None:

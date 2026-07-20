@@ -31,7 +31,7 @@ export const MealAnalyzer = () => {
   const [stream, setStream] = useState<MediaStream | null>(null);
 
   // Use environment variable for API key (fallback for demo)
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyBTP_Y6J5rqxc18iOcHb7Q8iKUFCGnDG_k";
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
 
   // Cleanup camera stream on component unmount
   useEffect(() => {
@@ -78,7 +78,7 @@ export const MealAnalyzer = () => {
     const base64Image = selectedImage.split(',')[1];
     const mimeType = selectedImage.split(';')[0].split(':')[1];
     
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
     const prompt = `Analyze the food in this image briefly. Give a very short analysis (max 2 sentences). 
     Provide a one-line verdict (e.g., 'Balanced', 'Too high in carbs', 'Lacks protein'). 
