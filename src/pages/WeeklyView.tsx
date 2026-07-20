@@ -7,8 +7,11 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, CartesianGrid, Tooltip } from "recharts";
+interface WeeklyViewProps {
+  onTabChange?: (tab: string) => void;
+}
 
-export function WeeklyView() {
+export function WeeklyView({ onTabChange }: WeeklyViewProps) {
   const { foodLogs, loading } = useFoodLogs();
   const [weekOffset, setWeekOffset] = useState(0);
   
@@ -109,7 +112,19 @@ const lastWeekData = getWeekData(-1);
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
               Start logging meals to unlock your 7-day food history, trends, and insights!
             </p>
-            <Button size="lg" className="bg-primary hover:bg-primary/90">
+            <Button 
+              size="lg" 
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => {
+                if (onTabChange) {
+                  onTabChange('daily');
+                  setTimeout(() => {
+                    const el = document.getElementById('food-logging-card');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }, 100);
+                }
+              }}
+            >
               🍽️ Log Your First Meal
             </Button>
           </CardContent>

@@ -180,16 +180,40 @@ export function FoodLogging() {
     try {
       toast.loading("🤖 Identifying food items...", { id: "food-analysis" });
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      let response: Response | null = null;
+      let responseData: any = null;
+      let retries = 3;
+      let delay = 2000;
 
-      const responseData = await response.json();
+      for (let i = 0; i < retries; i++) {
+        try {
+          response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          
+          responseData = await response.json();
+          
+          if (response.status === 429) {
+            console.warn(`Rate limited (429). Retrying in ${delay}ms...`);
+            if (i < retries - 1) {
+              await new Promise(resolve => setTimeout(resolve, delay));
+              delay *= 2;
+              continue;
+            }
+          }
+          break;
+        } catch (fetchErr) {
+          if (i === retries - 1) throw fetchErr;
+          console.warn(`Fetch error. Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2;
+        }
+      }
 
-      if (!response.ok) {
-        throw new Error(responseData?.error?.message || `HTTP error: ${response.status}`);
+      if (!response || !response.ok) {
+        throw new Error(responseData?.error?.message || `HTTP error: ${response?.status}`);
       }
 
       const candidate = responseData.candidates?.[0];
@@ -240,7 +264,7 @@ export function FoodLogging() {
   const meals: Array<'morning' | 'afternoon' | 'evening'> = ['morning', 'afternoon', 'evening'];
 
   return (
-    <Card>
+    <Card id="food-logging-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Utensils className="w-5 h-5" />

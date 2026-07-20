@@ -44,7 +44,17 @@ const Index = () => {
                     and keep building those healthy streaks! 💪✨
                   </p>
                   <div className="flex flex-wrap justify-center gap-4">
-                    <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
+                    <Button 
+                      size="lg" 
+                      variant="secondary" 
+                      className="bg-white text-primary hover:bg-white/90"
+                      onClick={() => {
+                        const el = document.getElementById('food-logging-card');
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                    >
                       📱 Log Your First Meal
                     </Button>
                     <Button 
@@ -103,7 +113,7 @@ const Index = () => {
       case 'meal-analyzer':
         return <MealAnalyzer />;
       case 'weekly':
-        return <WeeklyView />;
+        return <WeeklyView onTabChange={setActiveTab} />;
       case 'achievements':
         return <AchievementsBadges />;
       case 'leaderboard':

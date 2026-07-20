@@ -14,39 +14,24 @@ if not api_key:
     print("ERROR: GEMINI_API_KEY not found in .env file")
     exit(1)
 
-# Configure the Gemini model
+# Configure the Gemini interface (no test request on startup to save API quota)
 try:
     genai.configure(api_key=api_key)
-    # Try different model names in order of preference
-    model_names = [
-        "gemini-3.5-flash",
-        "gemini-3.1-flash-lite",
-        "gemini-3-pro-preview",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
-        "gemini-pro"
-    ]
-    
-    model = None
-    for model_name in model_names:
-        try:
-            model = genai.GenerativeModel(model_name)
-            # Test the model with a simple query
-            test_response = model.generate_content("Hello")
-            print(f"Successfully configured Gemini model: {model_name}")
-            break
-        except Exception as model_error:
-            print(f"Model {model_name} failed: {model_error}")
-            model = None
-            continue
-    
-    if model is None:
-        print("ERROR: No working Gemini model found")
-        exit(1)
-        
+    print("Gemini API key configured successfully")
+    model = genai.GenerativeModel("gemini-3.5-flash")
 except Exception as e:
     print(f"ERROR configuring Gemini API: {e}")
     exit(1)
+
+# List of models in order of preference
+model_names = [
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-3-pro-preview",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-pro"
+]
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -156,22 +141,53 @@ Keep under 100 words."""
 
         print(f"Sending prompt to Gemini...")
 
-        # Generate response with error handling
+        # Generate response with error handling and fallback/retry logic
         try:
-            response = model.generate_content(prompt)
-            
-            if not response:
-                raise Exception("Empty response from model")
+            ai_response = None
+            last_error = None
+            for model_name in model_names:
+                try:
+                    print(f"Attempting generation with model: {model_name}")
+                    model_inst = genai.GenerativeModel(model_name)
+                    
+                    # Retry with exponential backoff on rate limits
+                    import time
+                    retries = 3
+                    delay = 2
+                    for attempt in range(retries):
+                        try:
+                            response = model_inst.generate_content(prompt)
+                            if not response:
+                                raise Exception("Empty response from model")
+                            if not response.candidates:
+                                raise Exception("No candidates in response")
+                            if not response.candidates[0].content.parts:
+                                raise Exception("No content parts in response")
+                            
+                            ai_response = response.candidates[0].content.parts[0].text
+                            break
+                        except Exception as api_err:
+                            err_str = str(api_err).lower()
+                            if "exhausted" in err_str or "limit" in err_str or "429" in err_str:
+                                if attempt == retries - 1:
+                                    raise api_err
+                                print(f"Rate limit hit for {model_name}. Retrying in {delay}s...")
+                                time.sleep(delay)
+                                delay *= 2
+                            else:
+                                raise api_err
+                    
+                    if ai_response:
+                        print(f"Successfully generated response using {model_name} ({len(ai_response)} chars)")
+                        break
+                except Exception as model_err:
+                    print(f"Model {model_name} failed: {model_err}")
+                    last_error = model_err
+                    continue
+                    
+            if not ai_response:
+                raise last_error or Exception("All Gemini models failed")
                 
-            if not response.candidates:
-                raise Exception("No candidates in response")
-                
-            if not response.candidates[0].content.parts:
-                raise Exception("No content parts in response")
-
-            ai_response = response.candidates[0].content.parts[0].text
-            print(f"Gemini response received: {len(ai_response)} characters")
-            
             return jsonify({"response": ai_response}), 200, headers
 
         except Exception as api_error:
